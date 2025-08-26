@@ -1,4 +1,6 @@
 #include <Arduino.h>
+#include <WiFiS3.h>
+#include <WiFiUdp.h>
 
 // 25342231
 const int greenLED = 6;
@@ -39,6 +41,14 @@ String activeLED = "Green";
 // FOR THE BUTTON MESSAGE SPAM
 int lastButtonLockState = LOW;
 int lastButtonUnlockState = LOW;
+// UDP SetUP
+const char* ssid = "Booftarded";   //NAME OF HOTSPOT
+const char* password = "Apple@22green"; //min of 8 char
+WiFiUDP udp;
+unsigned int udpPort = 4210;
+IPAddress BoardB_IP(192,168,43,100);
+unsigned long lastSend = 0;
+const unsigned long sendInterval = 1000; //1 second between test messages
 
 void setup() {
   pinMode(greenLED, OUTPUT);
@@ -47,10 +57,22 @@ void setup() {
 
   pinMode(buttonUnlock, INPUT);
   pinMode(buttonLock, INPUT);
-
-  Serial.begin(9600);
+  
+  Serial.begin(115200);
   Serial.println("System initialised");
 
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(100);
+    Serial.print(".");
+  }
+
+  Serial.println();
+  Serial.println("Board A connected!");
+  Serial.print("IP: ");
+  Serial.println(WiFi.localIP());
+
+  udp.begin(udpPort);
 }
 
 void loop() {
@@ -71,12 +93,14 @@ void loop() {
     digitalWrite(redLED, LOW);
     lastInput = "Unlock Button";
     Serial.println(">>> UNLOCK BUTTON PRESSED. Starting protocol...");
+    sendMessageToBoardB("UNLOCK");
   } else if (lockButtonState == HIGH && lastButtonLockState == LOW && currentState == UNLOCKED) {
     currentState = GREEN_SOLID;
     lastStateChangeTime = millis();
     digitalWrite(greenLED, HIGH);
     lastInput = "Lock Button";
     Serial.println(">>> LOCK BUTTON PRESSED. Starting protocol...");
+    sendMessageToBoardB("LOCK");
   }
 
   switch(currentState) {
@@ -178,4 +202,12 @@ void loop() {
 
   lastButtonLockState = lockButtonState;
   lastButtonUnlockState = unlockButtonState;
+}
+
+void sendMessageToBoardB(const char* msg) {
+  udp.beginPacket(BoardB_IP, udpPort);
+  udp.write(msg);
+  udp.endPacket();
+  Serial.print("Sent to Board B: ");
+  Serial.println(msg);
 }

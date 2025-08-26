@@ -1,4 +1,6 @@
 #include <Arduino.h>
+#include <WifiS3.h>
+#include <WiFiUdp.h>
 
 int segPins[8] = {2,3,4,5,6,7,8,9};
 int digitPins[4] = {10,11,12,13};
@@ -23,15 +25,52 @@ int currentDigit = 0; // which digit to update this loop
 int startSeconds = 25; //This will change to the lockdown count
 long countdown = startSeconds * 100;
 
+//
+const char* ssid = "Booftarded";
+const char* password = "Apple@22green";
+WiFiUDP udp;
+unsigned  int udpPort = 4210;
+
+
 void setup() {
     for(int i = 0; i < 8; i++) pinMode(segPins[i], OUTPUT);
     for(int i = 0; i < 4; i++) pinMode(digitPins[i], OUTPUT);
+
+    Serial.begin(115200);
+
+    WiFi.begin(ssid, password);
+    while (WiFi.status() != WL_CONNECTED) {
+        delay(100);
+        Serial.print(".");
+    }
+
+    Serial.println();
+    Serial.println("Board B Connected!");
+    Serial.print("IP: ");
+    Serial.println(WiFi.localIP()); // FIND BOARD B IP
+
+    udp.begin(udpPort);
 }
 
 void loop() {
 
     // update display as fast as possible
     displayNumber(countdown);
+
+    int packetSize = udp.parsePacket();
+    if(packetSize) {
+        char incoming[255];
+        int len = udp.read(incoming, 255);
+        incoming[len] = '/0';
+
+        if (strcmp(incoming, "LOCK") == 0) {
+            countdown = 25 * 100; // CHANGE THIS TO THE TIME NEEDED
+            Serial.println("LOCK received! Countdown started.");
+        } else if (strcmp(incoming, "UNLOCK") == 0) {
+            countdown = 0;
+            Serial.println("UNLOCK received! Countdown ");
+        }
+    }
 
     static unsigned long last = 0;
     if (millis() - last >= 10) {

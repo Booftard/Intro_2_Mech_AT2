@@ -32,7 +32,6 @@ SystemState currentState = UNLOCKED;
 unsigned long lastStateChangeTime = 0;
 unsigned long lastBlinkTime = 0;
 bool LEDStatus = LOW;
-int lockState = 1; // Starts unlocked
 // SERIAL REPORT
 unsigned long lastReportTime = 0;
 const long reportInterval = 1000;
@@ -129,6 +128,8 @@ void loop() {
   // Serial.print("Current state: ");
   // Serial.println(currentState);
 
+  int stateNumber = (int)currentState;
+
   int lockButtonState = digitalRead(buttonLock);
   int unlockButtonState = digitalRead(buttonUnlock);
   activeLED = getLEDName(currentState);
@@ -161,7 +162,6 @@ void loop() {
   switch(currentState) {
     case UNLOCKED:
       setSolidLed(greenLED);
-      lockState = 1;
       break;
     case GREEN_SOLID:
       setSolidLed(greenLED);
@@ -193,7 +193,6 @@ void loop() {
       break;
     case RED_LOCKED:
       setSolidLed(redLED);
-      lockState = 6;
       break;
     case RED_BLINK:
       blinkLed(redLED, G);
@@ -208,11 +207,11 @@ void loop() {
     lastReportTime = millis();
 
     Serial.print("Status: ");
-    Serial.print(lockState);
+    Serial.print(stateNumber);
 
-    if (lockState == 1) {
+    if (stateNumber != (int)RED_LOCKED && stateNumber != (int)RED_BLINK) {
       Serial.print(" Unlocked");
-    } else if (lockState == 6) {
+    } else {
       Serial.print(" Locked");
     }
 

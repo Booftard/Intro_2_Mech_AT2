@@ -50,6 +50,54 @@ IPAddress BoardB_IP(192,168,43,100);
 unsigned long lastSend = 0;
 const unsigned long sendInterval = 1000; //1 second between test messages
 
+void sendMessageToBoardB(const char* msg) {
+  udp.beginPacket(BoardB_IP, udpPort);
+  udp.write(msg);
+  udp.endPacket();
+  Serial.print("Sent to Board B: ");
+  Serial.println(msg);
+}
+
+void setSolidLed(int pin) {
+  digitalWrite(greenLED, LOW);
+  digitalWrite(yellowLED, LOW);
+  digitalWrite(redLED, LOW);
+
+  digitalWrite(pin, HIGH);
+
+  LEDStatus = LOW;
+  lastBlinkTime = millis();
+}
+
+void blinkLed(int pin, unsigned long frequencyHz) {
+  unsigned long now = millis();
+  unsigned long frequencyMs = 1000.0 / frequencyHz;
+
+  if (now - lastBlinkTime >= frequencyMs) {
+    lastBlinkTime = now;
+    LEDStatus = !LEDStatus;
+  }
+
+  digitalWrite(greenLED, LOW);
+  digitalWrite(yellowLED, LOW);
+  digitalWrite(redLED, LOW);
+
+  digitalWrite(pin, LEDStatus ? HIGH : LOW);
+}
+
+String getLEDName(SystemState s) {
+  switch(s) {
+    case UNLOCKED: return "Green";
+    case GREEN_SOLID: return "Green";
+    case GREEN_BLINK: return "Green Blinking";
+    case YELLOW_SOLID: return "Yellow";
+    case YELLOW_BLINK: return "Yellow Blinking";
+    case RED_LOCKED: return "Red";
+    case RED_BLINK: return "Red Blinking";
+  }
+  return "Unknown";
+}
+
 void setup() {
   pinMode(greenLED, OUTPUT);
   pinMode(yellowLED, OUTPUT);
@@ -178,50 +226,3 @@ void loop() {
   lastButtonUnlockState = unlockButtonState;
 }
 
-void sendMessageToBoardB(const char* msg) {
-  udp.beginPacket(BoardB_IP, udpPort);
-  udp.write(msg);
-  udp.endPacket();
-  Serial.print("Sent to Board B: ");
-  Serial.println(msg);
-}
-
-void setSolidLed(int pin) {
-  digitalWrite(greenLED, LOW);
-  digitalWrite(yellowLED, LOW);
-  digitalWrite(redLED, LOW);
-
-  digitalWrite(pin, HIGH);
-
-  LEDStatus = LOW;
-  lastBlinkTime = millis();
-}
-
-void blinkLed(int pin, unsigned long frequencyHz) {
-  unsigned long now = millis();
-  unsigned long frequencyMs = 1000.0 / frequencyHz;
-
-  if (now - lastBlinkTime >= frequencyMs) {
-    lastBlinkTime = now;
-    LEDStatus = !LEDStatus;
-  }
-
-  digitalWrite(greenLED, LOW);
-  digitalWrite(yellowLED, LOW);
-  digitalWrite(redLED, LOW);
-
-  digitalWrite(pin, LEDStatus ? HIGH : LOW);
-}
-
-String getLEDName(SystemState s) {
-  switch(s) {
-    case UNLOCKED: return "Green";
-    case GREEN_SOLID: return "Green";
-    case GREEN_BLINK: return "Green Blinking";
-    case YELLOW_SOLID: return "Yellow";
-    case YELLOW_BLINK: return "Yellow Blinking";
-    case RED_LOCKED: return "Red";
-    case RED_BLINK: return "Red Blinking";
-  }
-  return "Unknown";
-}

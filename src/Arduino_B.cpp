@@ -31,6 +31,35 @@ const char* password = "Apple@22green";
 WiFiUDP udp;
 unsigned  int udpPort = 4210;
 
+void setSegments(int digit, bool dp) {
+    for (int i = 0; i < 8; i++) {
+        int val = numberPattern[digit][i];
+        if (i == 7 && dp) val = 1;
+        digitalWrite(segPins[i], val);
+    }
+}
+
+void displayNumber(long num) {
+    int cs = num % 100;
+    int sec = num / 100;
+
+    int digits[4] = {
+        sec / 10, // D1
+        sec % 10, // D2
+        cs / 10,  // D3
+        cs % 10   // D4
+    };
+
+    for (int i = 0; i < 4; i++) digitalWrite(digitPins[i], HIGH);
+
+    bool dp = (currentDigit == 1);
+    setSegments(digits[currentDigit], dp);
+
+    digitalWrite(digitPins[currentDigit], LOW);
+
+    currentDigit++;
+    if (currentDigit > 3) currentDigit = 0;
+}
 
 void setup() {
     for(int i = 0; i < 8; i++) pinMode(segPins[i], OUTPUT);
@@ -85,32 +114,3 @@ void loop() {
     }
 }
 
-void displayNumber(long num) {
-    int cs = num % 100;
-    int sec = num / 100;
-
-    int digits[4] = {
-        sec / 10, // D1
-        sec % 10, // D2
-        cs / 10,  // D3
-        cs % 10   // D4
-    };
-
-    for (int i = 0; i < 4; i++) digitalWrite(digitPins[i], HIGH);
-
-    bool dp = (currentDigit == 1);
-    setSegments(digits[currentDigit], dp);
-
-    digitalWrite(digitPins[currentDigit], LOW);
-
-    currentDigit++;
-    if (currentDigit > 3) currentDigit = 0;
-}
-
-void setSegments(int digit, bool dp) {
-    for (int i = 0; i < 8; i++) {
-        int val = numberPattern[digit][i];
-        if (i == 7 && dp) val = 1;
-        digitalWrite(segPins[i], val);
-    }
-}

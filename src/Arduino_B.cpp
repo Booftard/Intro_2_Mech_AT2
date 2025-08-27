@@ -1,5 +1,5 @@
 #include <Arduino.h>
-#include <WifiS3.h>
+#include <WiFiS3.h>
 #include <WiFiUdp.h>
 
 int segPins[8] = {2,3,4,5,6,7,8,9};
@@ -60,15 +60,21 @@ void loop() {
     int packetSize = udp.parsePacket();
     if(packetSize) {
         char incoming[255];
-        int len = udp.read(incoming, 255);
-        incoming[len] = '/0';
+        int len = udp.read(incoming, 254);
+        
+        if (len > 0) {
+            incoming[len] = '\0';
 
-        if (strcmp(incoming, "LOCK") == 0) {
+            if (strcmp(incoming, "LOCK") == 0) {
             countdown = 25 * 100; // CHANGE THIS TO THE TIME NEEDED
             Serial.println("LOCK received! Countdown started.");
-        } else if (strcmp(incoming, "UNLOCK") == 0) {
+            } else if (strcmp(incoming, "UNLOCK") == 0) {
             countdown = 0;
             Serial.println("UNLOCK received! Countdown ");
+            } else {
+                Serial.print("Unknown message");
+                Serial.println(incoming);
+            }
         }
     }
 

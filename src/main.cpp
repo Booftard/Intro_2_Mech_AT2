@@ -1,3 +1,4 @@
+//LOOK AT BOTTOM TO ADD
 #include <Arduino.h>
 #include <WiFiS3.h>
 #include <WiFiUdp.h>
@@ -230,6 +231,8 @@ void loop() {
     Serial.print(" | Active LED: ");
     Serial.println(activeLED);
   }
+
+  //MAKE SURE TO ADD IN POTENTIOMETER VALUE!!!!!
 
   lastButtonLockState = lockButtonState;
   lastButtonUnlockState = unlockButtonState;

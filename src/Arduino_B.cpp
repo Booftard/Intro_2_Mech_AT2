@@ -22,7 +22,7 @@ int currentDigit = 0; // which digit to update this loop
 
 // --- Countdown Variables
 
-int startSeconds = 16; //This will change to the lockdown count
+int startSeconds = 0; //This will change to the lockdown count
 long countdown = startSeconds * 100;
 
 //
@@ -95,7 +95,7 @@ void loop() {
             incoming[len] = '\0';
 
             if (strcmp(incoming, "LOCK") == 0) {
-            countdown = 25 * 100; // CHANGE THIS TO THE TIME NEEDED
+            countdown = 16 * 100; // CHANGE THIS TO THE TIME NEEDED
             Serial.println("LOCK received! Countdown started.");
             } else if (strcmp(incoming, "UNLOCK") == 0) {
             countdown = 0;

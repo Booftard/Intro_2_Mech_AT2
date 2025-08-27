@@ -3,18 +3,20 @@
 #include <WiFiUdp.h>
 
 // 25342231
-const int greenLED = 6;
-const int yellowLED = 5;
-const int redLED = 4;
-const int buttonUnlock = 3;
+const int redPin = 3;
+const int greenPin = 5;
+const int bluePin = 6;
+const int buttonUnlock = 4;
 const int buttonLock = 2;
+const int potPin = A0;
+
 // SPECIFICATIONS
 const int A = 3 * 1000;        // solid seconds
 const int B = 6;               // Hz / flash interval
 const int C = 4 * 1000;        // flashing seconds
 const int D = 5 * 1000;        // solid seconds
 const int E = 3;               // Hz / flash interval
-const int f = 3 * 1000;        // flashing seconds
+const int f = 4 * 1000;        // flashing seconds
 const int G = 4;               // Hz / flash interval
 const int H = 2 * 1000;        // flashing seconds
 // STATES
@@ -57,18 +59,19 @@ void sendMessageToBoardB(const char* msg) {
   Serial.println(msg);
 }
 
-void setSolidLed(int pin) {
-  digitalWrite(greenLED, LOW);
-  digitalWrite(yellowLED, LOW);
-  digitalWrite(redLED, LOW);
+void setSolidRGB(int red, int green, int blue) {
+  int potValue = analogRead(potPin);
+  int brightness = map(potValue, 0, 1023, 0, 255);
 
-  digitalWrite(pin, HIGH);
+  analogWrite(redPin, red == HIGH ? brightness : 0);
+  analogWrite(greenPin, green == HIGH ? brightness : 0);
+  analogWrite(bluePin, blue == HIGH ? brightness : 0);
 
   LEDStatus = LOW;
   lastBlinkTime = millis();
 }
 
-void blinkLed(int pin, unsigned long frequencyHz) {
+void blinkRGB(int red, int green, int blue, unsigned long frequencyHz) {
   unsigned long now = millis();
   unsigned long frequencyMs = 1000.0 / frequencyHz;
 
@@ -76,12 +79,19 @@ void blinkLed(int pin, unsigned long frequencyHz) {
     lastBlinkTime = now;
     LEDStatus = !LEDStatus;
   }
+  
+  int potValue = analogRead(potPin);
+  int brightness = map(potValue, 0, 1023, 0, 255);
 
-  digitalWrite(greenLED, LOW);
-  digitalWrite(yellowLED, LOW);
-  digitalWrite(redLED, LOW);
-
-  digitalWrite(pin, LEDStatus ? HIGH : LOW);
+  if (LEDStatus) {
+    analogWrite(redPin, red == HIGH ? brightness : 0);
+    analogWrite(greenPin, green == HIGH ? brightness : 0);
+    analogWrite(bluePin, blue == HIGH ? brightness : 0);
+  } else {
+    analogWrite(redPin, 0);
+    analogWrite(greenPin, 0);
+    analogWrite(bluePin, 0);
+  }
 }
 
 String getLEDName(SystemState s) {
@@ -98,9 +108,9 @@ String getLEDName(SystemState s) {
 }
 
 void setup() {
-  pinMode(greenLED, OUTPUT);
-  pinMode(yellowLED, OUTPUT);
-  pinMode(redLED, OUTPUT);
+  pinMode(redPin, OUTPUT);
+  pinMode(greenPin, OUTPUT);
+  pinMode(bluePin, OUTPUT);
 
   pinMode(buttonUnlock, INPUT);
   pinMode(buttonLock, INPUT);
@@ -144,7 +154,7 @@ void loop() {
       currentState = RED_BLINK;
     } else if (currentState != UNLOCKED) {
       currentState = UNLOCKED;
-      setSolidLed(greenLED);
+      setSolidRGB(LOW, HIGH, LOW);
     }
     Serial.println(">>> UNLOCK BUTTON PRESSED. Starting protocol...");
     sendMessageToBoardB("UNLOCK");
@@ -153,7 +163,7 @@ void loop() {
     currentState = GREEN_SOLID;
     lastStateChangeTime = millis();
     lastInput = "Lock Button";
-    setSolidLed(greenLED);
+    setSolidRGB(LOW, HIGH, LOW);
     
     Serial.println(">>> LOCK BUTTON PRESSED. Starting protocol...");
     sendMessageToBoardB("LOCK");
@@ -161,41 +171,41 @@ void loop() {
 
   switch(currentState) {
     case UNLOCKED:
-      setSolidLed(greenLED);
+      setSolidRGB(LOW, HIGH, LOW);
       break;
     case GREEN_SOLID:
-      setSolidLed(greenLED);
+      setSolidRGB(LOW, HIGH, LOW);
       if (millis() - lastStateChangeTime >= A) {
         currentState = GREEN_BLINK;
         lastStateChangeTime = millis();
       }
       break;
     case GREEN_BLINK:
-      blinkLed(greenLED, B);
+      blinkRGB(LOW, HIGH, LOW, B);
       if (millis() - lastStateChangeTime >= C) {
         currentState = YELLOW_SOLID;
         lastStateChangeTime = millis();
       }
       break;
     case YELLOW_SOLID:
-      setSolidLed(yellowLED);
+      setSolidRGB(HIGH, HIGH, LOW);
       if (millis() - lastStateChangeTime >= D) {
         currentState = YELLOW_BLINK;
         lastStateChangeTime = millis();
       }
       break;
     case YELLOW_BLINK:
-      blinkLed(yellowLED, E);
+      blinkRGB(HIGH, HIGH, LOW, E);
       if (millis() - lastStateChangeTime >= f) {
         currentState = RED_LOCKED;
         lastStateChangeTime = millis();
       }
       break;
     case RED_LOCKED:
-      setSolidLed(redLED);
+      setSolidRGB(HIGH, LOW, LOW);
       break;
     case RED_BLINK:
-      blinkLed(redLED, G);
+      blinkRGB(HIGH, LOW, LOW, G);
       if (millis() - lastStateChangeTime >= H) {
         currentState = UNLOCKED;
         lastStateChangeTime = millis();

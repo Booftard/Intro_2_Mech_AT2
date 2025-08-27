@@ -22,7 +22,7 @@ int currentDigit = 0; // which digit to update this loop
 
 // --- Countdown Variables
 
-int startSeconds = 25; //This will change to the lockdown count
+int startSeconds = 16; //This will change to the lockdown count
 long countdown = startSeconds * 100;
 
 //

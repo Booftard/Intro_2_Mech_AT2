@@ -50,8 +50,6 @@ const char* password = "Apple@22green"; //min of 8 char
 WiFiUDP udp;
 unsigned int udpPort = 4210;
 IPAddress BoardB_IP(192,168,43,100);
-unsigned long lastSend = 0;
-const unsigned long sendInterval = 1000; //1 second between test messages
 
 // PASSWORD STUFF
 const char* password = "password";
@@ -62,7 +60,7 @@ void sendMessageToBoardB(const char* msg) {
   udp.beginPacket(BoardB_IP, udpPort);
   udp.write(msg);
   udp.endPacket();
-  Serial.print("Sent to Board B: ");
+  Serial.print("Sent to Board B: ");//remove this once we know it works
   Serial.println(msg);
 }
 //The ? in analogWrite is a terniary operator (if value is true -> brightness else value is false -> 0)
@@ -100,7 +98,7 @@ void blinkRGB(int red, int green, int blue, unsigned long frequencyHz) {
     analogWrite(bluePin, 0);
   }
 }
-
+//Remove the "blinking" from the blink cases once we know it works
 String getLEDName(SystemState s) {
   switch(s) {
     case UNLOCKED: return "Green";
@@ -169,7 +167,7 @@ void loop() {
     
     lastStateChangeTime = millis();
     lastBlinkTime = millis();
-    lastInput = "Unlock Button";
+    lastInput = "Unlock";
     
     if (currentState == RED_LOCKED) {
       currentState = RED_BLINK;
@@ -185,7 +183,7 @@ void loop() {
     
     currentState = GREEN_SOLID;
     lastStateChangeTime = millis();
-    lastInput = "Lock Button";
+    lastInput = "Lock";
     setSolidRGB(LOW, HIGH, LOW);
     
     if (authenticated) {

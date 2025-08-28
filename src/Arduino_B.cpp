@@ -2,6 +2,8 @@
 #include <WiFiS3.h>
 #include <WiFiUdp.h>
 
+//  This boards serial monitor doesnt matter we're only showing the board A
+
 int segPins[8] = {2,3,4,5,6,7,8,9};
 int digitPins[4] = {10,11,12,13};
 
@@ -27,7 +29,7 @@ long countdown = startSeconds * 100;
 bool countDownActive = false;
 unsigned long zeroTime = 0;
 
-//
+// --- WiFi stuff
 const char* ssid = "Booftarded";
 const char* password = "Apple@22green";
 WiFiUDP udp;
@@ -83,7 +85,6 @@ void setup() {
         delay(100);
         Serial.print(".");
     }
-
     Serial.println();
     Serial.println("Board B Connected!");
     Serial.print("IP: ");

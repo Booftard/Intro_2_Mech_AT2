@@ -35,6 +35,7 @@ SystemState currentState = UNLOCKED;
 unsigned long lastStateChangeTime = 0;
 unsigned long lastBlinkTime = 0;
 bool LEDStatus = LOW;
+int potValue = analogRead(potPin);
 // SERIAL REPORT
 unsigned long lastReportTime = 0;
 const long reportInterval = 1000;
@@ -51,6 +52,11 @@ unsigned int udpPort = 4210;
 IPAddress BoardB_IP(192,168,43,100);
 unsigned long lastSend = 0;
 const unsigned long sendInterval = 1000; //1 second between test messages
+
+// PASSWORD STUFF
+const char* password = "password";
+bool authenticated = false;
+String lastAttempt = "";
 
 void sendMessageToBoardB(const char* msg) {
   udp.beginPacket(BoardB_IP, udpPort);
@@ -117,7 +123,8 @@ void setup() {
   pinMode(buttonLock, INPUT);
   
   Serial.begin(115200);
-  Serial.println("System initialised");
+
+  Serial.println("Enter password to enable serial monitor: ");
 
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED) {
@@ -135,9 +142,22 @@ void setup() {
 
 void loop() {
   
-  // TEST
-  // Serial.print("Current state: ");
-  // Serial.println(currentState);
+  //The check for password
+  if (!authenticated && Serial.available() > 0) {
+    char incomingChar = Serial.read();
+    if (incomingChar == '\n' || incomingChar == '\r') {
+      lastAttempt.trim();
+      if (lastAttempt.equals(password)) {
+        Serial.println("Password accepted have fun");
+        authenticated = true;
+      } else {
+        Serial.println("Password incorrect please try again");
+      }
+      lastAttempt = "";
+    } else {
+      password += incomingChar;
+    }
+  } 
 
   int stateNumber = (int)currentState;
 
@@ -157,7 +177,9 @@ void loop() {
       currentState = UNLOCKED;
       setSolidRGB(LOW, HIGH, LOW);
     }
-    Serial.println(">>> UNLOCK BUTTON PRESSED. Starting protocol...");
+    if (authenticated) {
+      Serial.println(">>> UNLOCK BUTTON PRESSED. Starting protocol...");
+    }
     sendMessageToBoardB("UNLOCK");
   } else if (lockButtonState == HIGH && lastButtonLockState == LOW && currentState == UNLOCKED) {
     
@@ -166,7 +188,9 @@ void loop() {
     lastInput = "Lock Button";
     setSolidRGB(LOW, HIGH, LOW);
     
-    Serial.println(">>> LOCK BUTTON PRESSED. Starting protocol...");
+    if (authenticated) {
+      Serial.println(">>> LOCK BUTTON PRESSED. Starting protocol...");
+    }
     sendMessageToBoardB("LOCK");
   }
 
@@ -214,22 +238,24 @@ void loop() {
       break;
   }
 
-  if (millis() - lastReportTime >= reportInterval) {
+  if (authenticated && millis() - lastReportTime >= reportInterval) {
     lastReportTime = millis();
 
-    Serial.print("Status: ");
+    Serial.print("State: ");
     Serial.print(stateNumber);
 
     if (stateNumber != (int)RED_LOCKED && stateNumber != (int)RED_BLINK) {
-      Serial.print(" Unlocked");
+      Serial.print(" | Unlocked");
     } else {
-      Serial.print(" Locked");
+      Serial.print(" | Locked");
     }
 
-    Serial.print(" | Last Input: ");
+    Serial.print("    | Last Button: ");
     Serial.print(lastInput);
-    Serial.print(" | Active LED: ");
-    Serial.println(activeLED);
+    Serial.print("    | Status Light: ");
+    Serial.print(activeLED);
+    Serial.print("    | Reading: ");
+    Serial.print(potPin);
   }
 
   //MAKE SURE TO ADD IN POTENTIOMETER VALUE!!!!!

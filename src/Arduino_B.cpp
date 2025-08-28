@@ -24,6 +24,7 @@ int currentDigit = 0; // which digit to update this loop
 
 int startSeconds = 0; //This will change to the lockdown count
 long countdown = startSeconds * 100;
+bool countDownActive = false;
 
 //
 const char* ssid = "Booftarded";
@@ -61,6 +62,15 @@ void displayNumber(long num) {
     if (currentDigit > 3) currentDigit = 0;
 }
 
+void clearDisplay() {
+    for (int i = 0; i < 8; i++) {
+        digitalWrite(segPins[i], LOW);
+    }
+    for (int i = 0; i < 4; i++) {
+        digitalWrite(digitPins[4], HIGH);
+    }
+}
+
 void setup() {
     for(int i = 0; i < 8; i++) pinMode(segPins[i], OUTPUT);
     for(int i = 0; i < 4; i++) pinMode(digitPins[i], OUTPUT);
@@ -85,7 +95,11 @@ void loop() {
 
     // update display as fast as possible
     displayNumber(countdown);
-
+    if (countDownActive) {
+        displayNumber(countdown);
+    } else {
+        clearDisplay();
+    }
     int packetSize = udp.parsePacket();
     if(packetSize) {
         char incoming[255];
@@ -110,7 +124,11 @@ void loop() {
     static unsigned long last = 0;
     if (millis() - last >= 10) {
         last = millis();
-        if (countdown > 0) countdown--;
+        if (countdown > 0) {
+            countdown--;
+        } else {
+            countDownActive = false;
+        }
     }
 }
 

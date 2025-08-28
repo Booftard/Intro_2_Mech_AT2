@@ -25,6 +25,7 @@ int currentDigit = 0; // which digit to update this loop
 int startSeconds = 0; //This will change to the lockdown count
 long countdown = startSeconds * 100;
 bool countDownActive = false;
+unsigned long zeroTime = 0;
 
 //
 const char* ssid = "Booftarded";
@@ -126,8 +127,16 @@ void loop() {
         last = millis();
         if (countdown > 0) {
             countdown--;
-        } else {
+        } else if (countDownActive) {
             countDownActive = false;
+            if (zeroTime == 0) {
+                zeroTime = millis();
+            }
+            //500ms Delay between when it reaches 0 and when it goes blank
+            if (millis() - zeroTime >= 500) {
+                countDownActive = false;
+                zeroTime = 0;
+            }
         }
     }
 }

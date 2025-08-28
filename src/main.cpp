@@ -65,7 +65,7 @@ void sendMessageToBoardB(const char* msg) {
   Serial.print("Sent to Board B: ");
   Serial.println(msg);
 }
-
+//The ? in analogWrite is a terniary operator (if value is true -> brightness else value is false -> 0)
 void setSolidRGB(int red, int green, int blue) {
   int potValue = analogRead(potPin);
   int brightness = map(potValue, 0, 1023, 0, 255);
@@ -257,8 +257,6 @@ void loop() {
     Serial.print("    | Reading: ");
     Serial.print(potPin);
   }
-
-  //MAKE SURE TO ADD IN POTENTIOMETER VALUE!!!!!
 
   lastButtonLockState = lockButtonState;
   lastButtonUnlockState = unlockButtonState;

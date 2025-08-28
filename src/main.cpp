@@ -1,5 +1,5 @@
 //LOOK AT BOTTOM TO ADD
-#include <Arduino.h>
+//#include <Arduino.h>
 #include <WiFiS3.h>
 #include <WiFiUdp.h>
 
@@ -52,7 +52,7 @@ unsigned int udpPort = 4210;
 IPAddress BoardB_IP(192,168,43,100);
 
 // PASSWORD STUFF
-const char* password = "password";
+const String masterPassword = "password\n";
 bool authenticated = false;
 String lastAttempt = "";
 
@@ -121,7 +121,7 @@ void setup() {
   pinMode(buttonLock, INPUT);
   
   Serial.begin(115200);
-
+  delay(1000);
   Serial.println("Enter password to enable serial monitor: ");
 
   WiFi.begin(ssid, password);
@@ -142,19 +142,22 @@ void loop() {
   
   //The check for password
   if (!authenticated && Serial.available() > 0) {
-    char incomingChar = Serial.read();
-    if (incomingChar == '\n' || incomingChar == '\r') {
-      lastAttempt.trim();
-      if (lastAttempt.equals(password)) {
+    String incomingChar = Serial.readString();
+    Serial.println(incomingChar);
+    //if (incomingChar == '\n' || incomingChar == '\r') {
+      //incomingChar.trim();
+      lastAttempt = incomingChar;
+      if (lastAttempt.equals(masterPassword)) {
         Serial.println("Password accepted have fun");
         authenticated = true;
       } else {
         Serial.println("Password incorrect please try again");
       }
       lastAttempt = "";
-    } else {
-      password += incomingChar;
-    }
+   // } 
+    // else {
+    //   masterPassword += incomingChar;
+    // }
   } 
 
   int stateNumber = (int)currentState;

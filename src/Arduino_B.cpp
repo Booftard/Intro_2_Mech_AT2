@@ -1,144 +1,221 @@
-// #include <Arduino.h>
-// #include <WiFiS3.h>
-// #include <WiFiUdp.h>
+#include <Arduino.h>
+#include <WiFiS3.h>
 
-// //  This boards serial monitor doesnt matter we're only showing the board A
+// Segment pins (a, b, c, d, e, f, g, dp)
+int segPins[8] = {2, 3, 4, 5, 6, 7, 8, 9};
+// Digit pins (D1, D2, D3, D4)
+int digitPins[4] = {10, 11, 12, 13};
 
-// int segPins[8] = {2,3,4,5,6,7,8,9};
-// int digitPins[4] = {10,11,12,13};
+// Segment patterns for digits 0-9 (0 = segment on, 1 = segment off)
+int numberPattern[10][8] = {
+    {0,0,0,0,0,0,1,1},  // 0
+    {1,0,0,1,1,1,1,1},  // 1
+    {0,0,1,0,0,1,0,1},  // 2
+    {0,0,0,0,1,1,0,1},  // 3
+    {1,0,0,1,1,0,0,1},  // 4
+    {0,1,0,0,1,0,0,1},  // 5
+    {0,1,0,0,0,0,0,1},  // 6
+    {0,0,0,1,1,1,1,1},  // 7
+    {0,0,0,0,0,0,0,1},  // 8
+    {0,0,0,0,1,0,0,1}   // 9
+};
 
-// int numberPattern[10][8] = {
-//     {1,1,1,1,1,1,0,0}, //0
-//     {0,1,1,0,0,0,0,0}, //1
-//     {1,1,0,1,1,0,1,0}, //2
-//     {1,1,1,1,0,0,1,0}, //3
-//     {0,1,1,0,0,1,1,0}, //4
-//     {1,0,1,1,0,1,1,0}, //5
-//     {1,0,1,1,1,1,1,0}, //6
-//     {1,1,1,0,0,0,0,0}, //7
-//     {1,1,1,1,1,1,1,0}, //8
-//     {1,1,1,1,0,1,1,0}  //9
-// };
+// Replace with your phone hotspot credentials
+const char* ssid = "Booftarded";
+const char* password = "Apple@22green";
 
-// int currentDigit = 0; // which digit to update this loop
+WiFiServer server(8080);
+int currentDigit = 0;
+int startSeconds = 16;
+long countdown = startSeconds * 10;  // Now in tenths of seconds
+bool countdownActive = false;        // Start inactive
+unsigned long previousMillis = 0;
+unsigned long lastDecrementTime = 0;
+const int decrementInterval = 100;   // 100ms for tenths decrement
+const int displayInterval = 2;       // 2ms for display multiplexing
 
-// // --- Countdown Variables
+void setSegments(int digit, bool dp) {
+    for (int i = 0; i < 8; i++) {
+        int val = numberPattern[digit][i];
+        if (i == 7) {  // DP is the 8th segment (index 7)
+            val = dp ? 0 : 1;  // Invert logic for DP if needed
+        }
+        digitalWrite(segPins[i], val);
+    }
+}
 
-// int startSeconds = 0; //This will change to the lockdown count
-// long countdown = startSeconds * 100;
-// bool countDownActive = false;
-// unsigned long zeroTime = 0;
+void clearDisplay() {
+    for (int i = 0; i < 8; i++) {
+        digitalWrite(segPins[i], HIGH);
+    }
+    for (int i = 0; i < 4; i++) {
+        digitalWrite(digitPins[i], LOW);
+    }
+}
 
-// // --- WiFi stuff
-// const char* ssid = "Booftarded";
-// const char* password = "Apple@22green";
-// WiFiUDP udp;
-// unsigned  int udpPort = 4210;
+void displayNumber() {
+    // Clear all digits first
+    for (int i = 0; i < 4; i++) {
+        digitalWrite(digitPins[i], LOW);
+    }
+    
+    // Clear all segments
+    for (int i = 0; i < 8; i++) {
+        digitalWrite(segPins[i], HIGH);
+    }
 
-// void setSegments(int digit, bool dp) {
-//     for (int i = 0; i < 8; i++) {
-//         int val = numberPattern[digit][i];
-//         if (i == 7 && dp) val = 1;
-//         digitalWrite(segPins[i], val);
-//     }
-// }
+    if (countdown <= 0) {
+        // Display 00.0 when countdown is complete (right-aligned: blank, 0, 0, 0 with DP)
+        if (currentDigit == 1) {
+            setSegments(0, false);
+            digitalWrite(digitPins[1], HIGH);
+        } else if (currentDigit == 2) {
+            setSegments(0, true);  // Show decimal point
+            digitalWrite(digitPins[2], HIGH);
+        } else if (currentDigit == 3) {
+            setSegments(0, false);
+            digitalWrite(digitPins[3], HIGH);
+        }
+        // Digit 0 (D1) remains blank
+        currentDigit = (currentDigit + 1) % 4;
+        return;
+    }
 
-// void displayNumber(long num) {
-//     int cs = num % 100;
-//     int sec = num / 100;
+    int totalTenths = countdown;
+    int seconds = totalTenths / 10;
+    int tenths = totalTenths % 10;
+    
+    // Determine which digits to display based on the value
+    int tens = seconds / 10;
+    int ones = seconds % 10;
+    
+    // Right-align the display - D1 is blank, show time on D2, D3, D4
+    if (currentDigit == 1) {
+        setSegments(tens, false);
+        digitalWrite(digitPins[1], HIGH);
+    } else if (currentDigit == 2) {
+        setSegments(ones, true);  // Show decimal point
+        digitalWrite(digitPins[2], HIGH);
+    } else if (currentDigit == 3) {
+        setSegments(tenths, false);
+        digitalWrite(digitPins[3], HIGH);
+    }
+    // Digit 0 (D1) remains blank
+    
+    currentDigit = (currentDigit + 1) % 4;
+}
 
-//     int digits[4] = {
-//         sec / 10, // D1
-//         sec % 10, // D2
-//         cs / 10,  // D3
-//         cs % 10   // D4
-//     };
+void connectToHotspot() {
+  Serial.print("Connecting to hotspot '");
+  Serial.print(ssid);
+  Serial.println("'...");
+  
+  WiFi.begin(ssid, password);
+  
+  int attempts = 0;
+  while (WiFi.status() != WL_CONNECTED && attempts < 20) {
+    delay(500);
+    attempts++;
+    Serial.print(".");
+  }
+  
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println("\nConnected to hotspot!");
+    Serial.print("Board B IP: ");
+    Serial.println(WiFi.localIP());
+  } else {
+    Serial.println("\nFailed to connect to hotspot!");
+    Serial.println("Please check:");
+    Serial.println("1. Hotspot is turned ON");
+    Serial.println("2. SSID and password are correct");
+    Serial.println("3. Phone allows Arduino to connect");
+    while(true) { delay(1000); } // Stop here if no connection
+  }
+}
 
-//     for (int i = 0; i < 4; i++) digitalWrite(digitPins[i], HIGH);
+void startCountdown() {
+  countdown = startSeconds * 10;
+  countdownActive = true;
+  Serial.println("Countdown STARTED - LOCK command received");
+}
 
-//     bool dp = (currentDigit == 1);
-//     setSegments(digits[currentDigit], dp);
+void stopCountdown() {
+  countdownActive = false;
+  countdown = startSeconds * 10; // Reset to initial value
+  Serial.println("Countdown STOPPED/RESET - UNLOCK command received");
+}
 
-//     digitalWrite(digitPins[currentDigit], LOW);
+void setup() {
+  for (int i = 0; i < 8; i++) {
+    pinMode(segPins[i], OUTPUT);
+    digitalWrite(segPins[i], HIGH);
+  }
+  for (int i = 0; i < 4; i++) {
+    pinMode(digitPins[i], OUTPUT);
+    digitalWrite(digitPins[i], LOW);
+  }
 
-//     currentDigit++;
-//     if (currentDigit > 3) currentDigit = 0;
-// }
+  countdown = startSeconds * 10;  // Convert to tenths of seconds
+  countdownActive = false;        // Don't start countdown until LOCK command
 
-// void clearDisplay() {
-//     for (int i = 0; i < 8; i++) {
-//         digitalWrite(segPins[i], LOW);
-//     }
-//     for (int i = 0; i < 4; i++) {
-//         digitalWrite(digitPins[4], HIGH);
-//     }
-// }
+  Serial.begin(9600);
+  delay(1000);
+  
+  connectToHotspot();
+  
+  // Start server
+  server.begin();
+  Serial.println("Timer Controller Ready");
+  Serial.print("Server IP: ");
+  Serial.println(WiFi.localIP());
+  Serial.println("Waiting for LOCK/UNLOCK commands from Board A...");
+}
 
-// void setup() {
-//     for(int i = 0; i < 8; i++) pinMode(segPins[i], OUTPUT);
-//     for(int i = 0; i < 4; i++) pinMode(digitPins[i], OUTPUT);
+void loop() {
+  unsigned long currentMillis = millis();
 
-//     Serial.begin(115200);
+  // Check for incoming commands from Board A
+  WiFiClient client = server.available();
+  
+  if (client) {
+    String command = client.readStringUntil('\n');
+    command.trim();
+    
+    Serial.print("Received command: ");
+    Serial.println(command);
+    
+    if (command == "LOCK") {
+      startCountdown();
+    } 
+    else if (command == "UNLOCK") {
+      stopCountdown();
+    }
+    
+    client.stop();
+  }
 
-//     WiFi.begin(ssid, password);
-//     while (WiFi.status() != WL_CONNECTED) {
-//         delay(100);
-//         Serial.print(".");
-//     }
-//     Serial.println();
-//     Serial.println("Board B Connected!");
-//     Serial.print("IP: ");
-//     Serial.println(WiFi.localIP()); // FIND BOARD B IP
+  // Display multiplexing
+  if (currentMillis - previousMillis >= displayInterval) {
+    previousMillis = currentMillis;
+    displayNumber();
+  }
 
-//     udp.begin(udpPort);
-// }
-
-// void loop() {
-
-//     // update display as fast as possible
-//     displayNumber(countdown);
-//     if (countDownActive) {
-//         displayNumber(countdown);
-//     } else {
-//         clearDisplay();
-//     }
-//     int packetSize = udp.parsePacket();
-//     if(packetSize) {
-//         char incoming[255];
-//         int len = udp.read(incoming, 254);
-        
-//         if (len > 0) {
-//             incoming[len] = '\0';
-
-//             if (strcmp(incoming, "LOCK") == 0) {
-//             countdown = 16 * 100; // CHANGE THIS TO THE TIME NEEDED
-//             Serial.println("LOCK received! Countdown started.");
-//             } else if (strcmp(incoming, "UNLOCK") == 0) {
-//             countdown = 0;
-//             Serial.println("UNLOCK received! Countdown ");
-//             } else {
-//                 Serial.print("Unknown message");
-//                 Serial.println(incoming);
-//             }
-//         }
-//     }
-
-//     static unsigned long last = 0;
-//     if (millis() - last >= 10) {
-//         last = millis();
-//         if (countdown > 0) {
-//             countdown--;
-//         } else if (countDownActive) {
-//             countDownActive = false;
-//             if (zeroTime == 0) {
-//                 zeroTime = millis();
-//             }
-//             //500ms Delay between when it reaches 0 and when it goes blank
-//             if (millis() - zeroTime >= 500) {
-//                 countDownActive = false;
-//                 zeroTime = 0;
-//             }
-//         }
-//     }
-// }
-
+  // Countdown decrement
+  if (countdownActive && currentMillis - lastDecrementTime >= decrementInterval) {
+    lastDecrementTime = currentMillis;
+    if (countdown > 0) {
+      countdown--;
+      if (countdown % 10 == 0) { // Only print full seconds to reduce serial spam
+        Serial.print("Time: ");
+        // Format with leading zero and right alignment for serial monitor
+        if (countdown / 10 < 10) Serial.print("0");
+        Serial.print(countdown / 10);  // Seconds
+        Serial.print(".");
+        Serial.println(countdown % 10);  // Tenths
+      }
+    } else {
+      countdownActive = false;
+      Serial.println("Countdown complete!");
+    }
+  }
+}

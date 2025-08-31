@@ -1,4 +1,6 @@
 // #include <Arduino.h>
+// #include <WiFiS3.h>
+// //10.159.167.38 BOARD B IP
 
 // //PINS IN USE
 // const int redPin = 3;
@@ -29,6 +31,28 @@
 //   RED_BLINK
 // };
 
+// //  WIFI STATES
+// enum WiFiStates {
+//     WIFI_DISCONNECTED,
+//     WIFI_CONNECTING,
+//     WIFI_CONNECTED,
+//     WIFI_FAILED
+// };
+
+// // WIFI STUFF
+// const char* ssid = "Booftarded";
+// const char * password = "Apple@22green";
+
+// IPAddress boardB_IP(10, 159, 167, 38);
+// const int boardB_Port = 8080;
+
+// WiFiClient client;
+
+// WiFiStates wifiState = WIFI_DISCONNECTED;
+// bool systemReady = false;
+// unsigned long lastWiFiAttempt = 0;
+// const unsigned long wifiRetryInterval = 10000;
+
 // // MISS-EL-AIN-EOUS
 // SystemState currentState = UNLOCKED;
 // unsigned long lastStateChangeTime = 0;
@@ -49,7 +73,6 @@
 // // PASSWORD STUFF
 // const String masterPassword = "password";
 // bool authenticated = false;
-// String lastPassAttempt = "";
 
 // void setSolidRGB(int red, int green, int blue) {
 //   int potValue = analogRead(potPin);
@@ -99,6 +122,80 @@
 //     return "Unknown";
 //   }
 
+//   void sendMessageToBoardB(const char* command) {
+//     if(wifiState == WIFI_CONNECTED && client.connect(boardB_IP, boardB_Port)) {
+//         client.println(command);
+//         client.stop();
+//         if (authenticated) {
+//             Serial.print("Sent to board B: ");
+//             Serial.println(command);
+//         }
+//     }
+//   }
+
+//   void connectToWiFi() {
+//     //HAVE LIGHT BLUE FOR WIFI BECAUSE I FEEL LIKE IT
+//     unsigned long currentMillis = millis();
+
+//     switch(wifiState) {
+//         case WIFI_DISCONNECTED:
+//             WiFi.begin(ssid, password);
+//             wifiState = WIFI_CONNECTING;
+//             lastWiFiAttempt = currentMillis;
+//             if (authenticated) {
+//                 Serial.println("Starting WiFi connection...");
+//             }
+//             break;
+//         case WIFI_CONNECTING:
+//             if (WiFi.status() == WL_CONNECTED) {
+//                 wifiState = WIFI_CONNECTED;
+//                 systemReady = true;
+//                 if (authenticated) {
+//                     Serial.println("WiFi connected");
+
+//                 }
+//                 setSolidRGB(LOW, HIGH, LOW);
+//                 currentState = UNLOCKED;
+//             } else if (currentMillis - lastWiFiAttempt > 15000) {
+//                 wifiState = WIFI_FAILED;
+//                 if (authenticated) {
+//                     Serial.println("WiFi connection failed");
+//                 }
+//             }
+//             break;
+//         case WIFI_FAILED:
+//             if (currentMillis - lastWiFiAttempt > wifiRetryInterval) {
+//                 wifiState = WIFI_DISCONNECTED;
+//             }
+//             break;
+//         case WIFI_CONNECTED:
+//             if (WiFi.status() != WL_CONNECTED) {
+//                 wifiState = WIFI_DISCONNECTED;
+//                 systemReady = false;
+//                 if (authenticated) {
+//                     Serial.println("WiFi connection lost");
+//                 }
+//             }
+//             break;
+//     }
+
+//     switch(wifiState) {
+//         case WIFI_DISCONNECTED:
+//         case WIFI_FAILED:
+//             setSolidRGB(LOW, LOW, HIGH);
+//             break;
+//         case WIFI_CONNECTING:
+//             if (currentMillis % 1000 < 500) {
+//                 setSolidRGB(LOW, LOW, HIGH);
+//             } else {
+//                 setSolidRGB(LOW, LOW, 100);
+//             }
+//             break;
+//         case WIFI_CONNECTED:
+//             break;
+//     }
+//   }
+
 //   void setup() {
 //     pinMode(redPin, OUTPUT);
 //     pinMode(greenPin, OUTPUT);
@@ -108,11 +205,24 @@
 //     pinMode(buttonLock, INPUT);
 
 //     Serial.begin(9600);
-//     delay(1000);
-//     Serial.println("Enter password to enable serial monitor: ");
+    
+//     setSolidRGB(LOW, LOW, HIGH);
+//     wifiState = WIFI_DISCONNECTED;
 //   }
 
 //   void loop() {
+
+//     connectToWiFi();
+
+//     if (!systemReady || wifiState != WIFI_CONNECTED) {
+//         return;
+//     }
+
+//     int stateNumber = (int)currentState;
+    
+//     int lockButtonState = digitalRead(buttonLock);
+//     int unlockButtonState = digitalRead(buttonUnlock);
+//     activeLED = getLEDName(currentState);
 
 //     if (!authenticated && Serial.available() > 0) {
 //       String incomingStr = Serial.readStringUntil('\n');
@@ -125,12 +235,6 @@
 //         Serial.println("Password incorrect please try again");
 //       }
 //     }
-    
-//     int stateNumber = (int)currentState;
-    
-//     int lockButtonState = digitalRead(buttonLock);
-//     int unlockButtonState = digitalRead(buttonUnlock);
-//     activeLED = getLEDName(currentState);
 
 //     if (unlockButtonState == HIGH && lastButtonUnlockState == LOW && currentState != UNLOCKED && isLastButtonLock) {
 //       lastStateChangeTime = millis();
@@ -142,6 +246,9 @@
 //       } else {
 //         currentState = UNLOCKED;
 //       }
+
+//       sendMessageToBoardB("UNLOCK");
+
 //       if (authenticated) {
 //         Serial.println(">>> UNLOCK BUTTON PRESSED. STARTING PROTOCOL...");
 //       }
@@ -153,6 +260,8 @@
 //       currentState = GREEN_SOLID;
 //       lastStateChangeTime = millis();
 //       lastInput = "Lock";
+
+//       sendMessageToBoardB("LOCK");
 
 //       if (authenticated) {
 //         Serial.println(">>> LOCK BUTTON PRESSED. STARTING PROTOCOL...");
@@ -221,7 +330,9 @@
 //       Serial.print("   | Status Light: ");
 //       Serial.print(activeLED);
 //       Serial.print("   | Reading: ");
-//       Serial.println(analogRead(potPin));
+//       Serial.print(analogRead(potPin));
+//       Serial.print("    | WiFi: ");
+//       Serial.println(wifiState == WIFI_CONNECTED ? "Connected" : "Disconnected");
 //     }
 
 //     lastButtonLockState = lockButtonState;

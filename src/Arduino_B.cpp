@@ -31,8 +31,19 @@ long countdown = startSeconds * 10;  // Now in tenths of seconds
 bool countdownActive = false;        // Start inactive
 unsigned long previousMillis = 0;
 unsigned long lastDecrementTime = 0;
+unsigned long countdownCompleteTime = 0;
 const int decrementInterval = 100;   // 100ms for tenths decrement
 const int displayInterval = 2;       // 2ms for display multiplexing
+const int completionDisplayTime = 1000;
+
+enum WiFiState {
+    WIFI_DISCONNECTED,
+    WIFI_CONNECTING,
+    WIFI_CONNECTED
+};
+WiFiState wifiState = WIFI_DISCONNECTED;
+unsigned long lastWiFiAttempt = 0;
+const unsigned long wifiRetryInterval = 10000;
 
 void setSegments(int digit, bool dp) {
     for (int i = 0; i < 8; i++) {
@@ -64,21 +75,30 @@ void displayNumber() {
         digitalWrite(segPins[i], HIGH);
     }
 
-    if (countdown <= 0) {
-        // Display 00.0 when countdown is complete (right-aligned: blank, 0, 0, 0 with DP)
-        if (currentDigit == 1) {
-            setSegments(0, false);
-            digitalWrite(digitPins[1], HIGH);
-        } else if (currentDigit == 2) {
-            setSegments(0, true);  // Show decimal point
-            digitalWrite(digitPins[2], HIGH);
-        } else if (currentDigit == 3) {
-            setSegments(0, false);
-            digitalWrite(digitPins[3], HIGH);
-        }
-        // Digit 0 (D1) remains blank
+    if (!countdownActive && countdownCompleteTime == 0) {
         currentDigit = (currentDigit + 1) % 4;
         return;
+    }
+
+    if (countdown <= 0 && countdownCompleteTime > 0) {
+        // Display 00.0 when countdown is complete (right-aligned: blank, 0, 0, 0 with DP)
+        if (millis() - countdownCompleteTime < completionDisplayTime) {
+            if (currentDigit == 1) {
+                setSegments(0, false);
+                digitalWrite(digitPins[1], HIGH);
+            } else if (currentDigit == 2) {
+                setSegments(0, true);  // Show decimal point
+                digitalWrite(digitPins[2], HIGH);
+            } else if (currentDigit == 3) {
+                setSegments(0, false);
+                digitalWrite(digitPins[3], HIGH);
+            }
+        } else {
+            countdownCompleteTime = 0;
+            countdownActive = false;
+            countdown = startSeconds * 10;
+        }
+        
     }
 
     int totalTenths = countdown;

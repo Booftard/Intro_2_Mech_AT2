@@ -1,3 +1,4 @@
+
 #include <Arduino.h>
 #include <WiFiS3.h>
 
@@ -29,8 +30,8 @@ int currentDigit = 0;
 int startSeconds = 16;
 long countdown = startSeconds * 10;  // Now in tenths of seconds
 bool countdownActive = false;        // Start inactive
-unsigned long previousMillis = 0;
-unsigned long lastDecrementTime = 0;
+unsigned long previousDisplayMillis = 0;
+unsigned long previousDecrementMillis = 0;
 unsigned long countdownCompleteTime = 0;
 const int decrementInterval = 100;   // 100ms for tenths decrement
 const int displayInterval = 2;       // 2ms for display multiplexing
@@ -43,7 +44,9 @@ enum WiFiState {
 };
 WiFiState wifiState = WIFI_DISCONNECTED;
 unsigned long lastWiFiAttempt = 0;
+unsigned long lastWiFiCheck = 0;
 const unsigned long wifiRetryInterval = 10000;
+const unsigned long wifiCheckInterval = 1000;
 
 enum BootState {
     BOOT_IDLE,
@@ -63,6 +66,10 @@ int currentAnimationSegment = 0;
 const int clockwiseSegments[6] = {0,1,2,3,4,5};
 unsigned long lastAnimationTime = 0;
 const int animationSpeed = 200;
+
+String wifiCommandBuffer = "";
+unsigned long lastCommandCheck = 0;
+const unsigned long commandCheckInterval = 10;
 
 void setSegments(int digit, bool dp) {
     for (int i = 0; i < 8; i++) {
@@ -307,10 +314,13 @@ void connectToHotspot() {
         }
         break;
     case WIFI_CONNECTED:
-        if (WiFi.status() != WL_CONNECTED) {
-            Serial.println("WiFi connection lost");
-            wifiState = WIFI_DISCONNECTED;
-            lastWiFiAttempt = currentMillis;
+        if (currentMillis - lastWiFiCheck >= wifiCheckInterval) {
+            lastWiFiCheck = currentMillis;
+            if (WiFi.status() != WL_CONNECTED) {
+                Serial.println("WiFi connection lost");
+                wifiState = WIFI_DISCONNECTED;
+                lastWiFiAttempt = currentMillis;
+            }
         }
         break;
   }
@@ -328,6 +338,41 @@ void stopCountdown() {
   countdownCompleteTime = 0;
   countdown = startSeconds * 10; // Reset to initial value
   Serial.println("Countdown STOPPED/RESET - UNLOCK command received");
+}
+
+void checkForCommands() {
+    unsigned long currentMillis = millis();
+
+    if (currentMillis - lastCommandCheck >= commandCheckInterval) {
+        lastCommandCheck = currentMillis;
+
+        WiFiClient client = server.available();
+        if (client) {
+            while (client.connected() && client.available()) {
+                char c = client.read();
+                if (c == '\n') {
+                    wifiCommandBuffer.trim();
+                    if (wifiCommandBuffer.length() > 0) {
+                        Serial.print("Received command: ");
+                        Serial.println(wifiCommandBuffer);
+
+                        if (wifiCommandBuffer == "LOCK") {
+                            startCountdown();
+                        } else if (wifiCommandBuffer == "UNLOCK") {
+                            stopCountdown();
+                        }
+                        wifiCommandBuffer = "";
+                    }
+                } else if (c != '\r') {
+                    wifiCommandBuffer += c;
+                    if (wifiCommandBuffer.length() > 20) {
+                        wifiCommandBuffer = "";
+                    }
+                }
+            }
+            client.stop();
+        }
+    }
 }
 
 void setup() {
@@ -361,44 +406,24 @@ void loop() {
     return;
   }
 
-  connectToHotspot();
-
-  if (wifiState != WIFI_CONNECTED) {
-    connectionAnimation();
-  } else { 
-    if (currentMillis - previousMillis >=  displayInterval) {
-        previousMillis = currentMillis;
-        displayNumber();
-    }  
+  if (currentMillis - previousDisplayMillis >= displayInterval) {
+    previousDisplayMillis = currentMillis;
+    displayNumber();
   }
 
+  connectToHotspot();
 
   if (wifiState == WIFI_CONNECTED) {
-    // Check for incoming commands from Board A
-    WiFiClient client = server.available();
-  
-        if (client) {
-            String command = client.readStringUntil('\n');
-            command.trim();
-    
-            Serial.print("Received command: ");
-            Serial.println(command);
-    
-            if (command == "LOCK") {
-                startCountdown();
-            } 
-            else if (command == "UNLOCK") {
-                stopCountdown();
-            }
-        client.stop();
-    }
+    checkForCommands();
+  } else {
+    connectionAnimation();
   }
 
   // Countdown decrement
   if (countdownActive && wifiState == WIFI_CONNECTED && countdownActive 
-    && currentMillis - lastDecrementTime >= decrementInterval) {
+    && currentMillis - previousDecrementMillis >= decrementInterval) {
 
-    lastDecrementTime = currentMillis;
+    previousDecrementMillis = currentMillis;
     if (countdown > 0) {
       countdown--;
       if (countdown % 10 == 0) { // Only print full seconds to reduce serial spam

@@ -45,8 +45,8 @@ enum WiFiStates {
 };
 
 // WIFI STUFF
-const char* ssid = "Booftarded";
-const char * password = "Apple@22green";
+const char* ssid = "vivo S19 Pro";
+const char * password = "88888888";
 
 IPAddress boardB_IP(10, 159, 167, 38);
 const int boardB_Port = 8080;
@@ -270,6 +270,8 @@ void connectToWiFi() {
    
   setSolidRGB(LOW, LOW, HIGH);
   wifiState = WIFI_DISCONNECTED;
+
+  Serial.println("System started. Please enter password to see Serial Information. ");
  }
 
 /*  Main loop function
@@ -297,21 +299,23 @@ void connectToWiFi() {
       return;
   }
 
-  int stateNumber = (int)currentState;
-    
   int lockButtonState = digitalRead(buttonLock);
   int unlockButtonState = digitalRead(buttonUnlock);
-  activeLED = getLEDName(currentState);
 
   if (!authenticated && Serial.available() > 0) {
     String incomingStr = Serial.readStringUntil('\n');
     incomingStr.trim();
 
     if (incomingStr.equals(masterPassword)) {
-      Serial.println("Password accepted have fun!");
       authenticated = true;
+      Serial.println("Password accepted have fun!");
+      lastReportTime = millis();
     } else {
       Serial.println("Password incorrect please try again");
+    }
+    //  Clears serial buffer
+    while (Serial.available() > 0) {
+      Serial.read();
     }
   }
   /*  Button Press checking
@@ -417,28 +421,34 @@ void connectToWiFi() {
     It will only run if the password has been authenticated and the time since the last message has been more than a second
     
   */
-  if (authenticated && millis() - lastReportTime >= reportInterval) {
-    lastReportTime = millis();
 
-    Serial.print("State: ");
-    Serial.print(stateNumber + 1);//starts from 0 so add 1 
+  if (authenticated) {
+    unsigned long currentMillis = millis();
 
-    if (stateNumber != (int)RED_LOCKED && stateNumber != (int)RED_BLINK) {
-      Serial.print(" | Unlocked");
-    } else {
-      Serial.print(" | Locked");
+    if (currentMillis - lastReportTime >= reportInterval) {
+      int stateNumber = (int)currentState;
+      activeLED = getLEDName(currentState);
+      lastReportTime = currentMillis;
+
+      Serial.print("State: ");
+      Serial.print(stateNumber + 1);//starts from 0 so add 1 
+      if (stateNumber != (int)RED_LOCKED && stateNumber != (int)RED_BLINK) {
+        Serial.print(" | Unlocked");
+      } else {
+        Serial.print(" | Locked");
+      }
+
+      Serial.print("   | Last Button: ");
+      Serial.print(lastInput);
+      Serial.print("   | Status Light: ");
+      Serial.print(activeLED);
+      Serial.print("   | Reading: ");
+      Serial.print(analogRead(potPin));
+      Serial.print("    | WiFi: ");
+      Serial.println(wifiState == WIFI_CONNECTED ? "Connected" : "Disconnected");
     }
-
-    Serial.print("   | Last Button: ");
-    Serial.print(lastInput);
-    Serial.print("   | Status Light: ");
-    Serial.print(activeLED);
-    Serial.print("   | Reading: ");
-    Serial.print(analogRead(potPin));
-    Serial.print("    | WiFi: ");
-    Serial.println(wifiState == WIFI_CONNECTED ? "Connected" : "Disconnected");
   }
-
+  
   lastButtonLockState = lockButtonState;
   lastButtonUnlockState = unlockButtonState;
 }

@@ -2,8 +2,6 @@
 // #include <Arduino.h>
 // #include <WiFiS3.h>
 
-//10.159.167.223 BOARD A IP
-
 // // Segment pins (a, b, c, d, e, f, g, dp)
 // int segPins[8] = {2, 3, 4, 5, 6, 7, 8, 9};
 // // Digit pins (D1, D2, D3, D4)
@@ -72,9 +70,6 @@
 // String wifiCommandBuffer = "";
 // unsigned long lastCommandCheck = 0;
 // const unsigned long commandCheckInterval = 10;
-
-// //  HEARTBEAT STUFF
-// const char* boardA_IP = "";
 
 // void setSegments(int digit, bool dp) {
 //     for (int i = 0; i < 8; i++) {

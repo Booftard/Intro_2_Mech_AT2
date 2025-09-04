@@ -52,11 +52,15 @@ IPAddress boardB_IP(10, 159, 167, 38);
 const int boardB_Port = 8080;
 
 WiFiClient client;
+WiFiServer server(8080);
 
 WiFiStates wifiState = WIFI_DISCONNECTED;
 bool systemReady = false;
 unsigned long lastWiFiAttempt = 0;
 const unsigned long wifiRetryInterval = 10000;
+unsigned long lastCommandCheck = 0;
+String wifiCommandBuffer = "";
+const unsigned long commandCheckInterval = 10;
 
 // MISS-EL-AIN-EOUS
 SystemState currentState = UNLOCKED;
@@ -166,6 +170,37 @@ void sendMessageToBoardB(const char* command) {
   }
 }
 
+void checkForCommand() {
+  unsigned long currentMillis = millis();
+
+  if (currentMillis - lastCommandCheck >= commandCheckInterval) {
+    lastCommandCheck = currentMillis;
+
+    WiFiClient client = server.available();
+    if (client) {
+      while (client.connected() && client.available()) {
+        char c = client.read();
+        if (c == '\n') {
+          wifiCommandBuffer.trim();
+          if (wifiCommandBuffer.length() > 0) {
+            if (wifiCommandBuffer == "STARTED") {
+              //  change thingy to Start
+            } else if (wifiCommandBuffer == "STOPPED") {
+              //  change to Stopped
+            } else if (wifiCommandBuffer == "FINISHED") {
+              //  change to Finished
+            }
+            wifiCommandBuffer = ""; 
+          }
+        } else if (c != '\r') {
+          wifiCommandBuffer += c;
+        }
+      }
+    }
+
+  }
+}
+
 /*  Connecting to WiFi fucntion
   This is another time dependant function so we will use millis() to avoid blocking
   our second enum wifiState will help simplify the flow and direction of the code through a 
@@ -270,6 +305,8 @@ void connectToWiFi() {
    
   setSolidRGB(LOW, LOW, HIGH);
   wifiState = WIFI_DISCONNECTED;
+
+  Serial.println("System started. Please enter password to see Serial Information. ");
  }
 
 /*  Main loop function
@@ -297,21 +334,23 @@ void connectToWiFi() {
       return;
   }
 
-  int stateNumber = (int)currentState;
-    
   int lockButtonState = digitalRead(buttonLock);
   int unlockButtonState = digitalRead(buttonUnlock);
-  activeLED = getLEDName(currentState);
 
   if (!authenticated && Serial.available() > 0) {
     String incomingStr = Serial.readStringUntil('\n');
     incomingStr.trim();
 
     if (incomingStr.equals(masterPassword)) {
-      Serial.println("Password accepted have fun!");
       authenticated = true;
+      Serial.println("Password accepted have fun!");
+      lastReportTime = millis();
     } else {
       Serial.println("Password incorrect please try again");
+    }
+    //  Clears serial buffer
+    while (Serial.available() > 0) {
+      Serial.read();
     }
   }
   /*  Button Press checking
@@ -417,28 +456,34 @@ void connectToWiFi() {
     It will only run if the password has been authenticated and the time since the last message has been more than a second
     
   */
-  if (authenticated && millis() - lastReportTime >= reportInterval) {
-    lastReportTime = millis();
 
-    Serial.print("State: ");
-    Serial.print(stateNumber + 1);//starts from 0 so add 1 
+  if (authenticated) {
+    unsigned long currentMillis = millis();
 
-    if (stateNumber != (int)RED_LOCKED && stateNumber != (int)RED_BLINK) {
-      Serial.print(" | Unlocked");
-    } else {
-      Serial.print(" | Locked");
+    if (currentMillis - lastReportTime >= reportInterval) {
+      int stateNumber = (int)currentState;
+      activeLED = getLEDName(currentState);
+      lastReportTime = currentMillis;
+
+      Serial.print("State: ");
+      Serial.print(stateNumber + 1);//starts from 0 so add 1 
+      if (stateNumber != (int)RED_LOCKED && stateNumber != (int)RED_BLINK) {
+        Serial.print(" | Unlocked");
+      } else {
+        Serial.print(" | Locked");
+      }
+
+      Serial.print("   | Last Button: ");
+      Serial.print(lastInput);
+      Serial.print("   | Status Light: ");
+      Serial.print(activeLED);
+      Serial.print("   | Reading: ");
+      Serial.print(analogRead(potPin));
+      Serial.print("    | WiFi: ");
+      Serial.println(wifiState == WIFI_CONNECTED ? "Connected" : "Disconnected");
     }
-
-    Serial.print("   | Last Button: ");
-    Serial.print(lastInput);
-    Serial.print("   | Status Light: ");
-    Serial.print(activeLED);
-    Serial.print("   | Reading: ");
-    Serial.print(analogRead(potPin));
-    Serial.print("    | WiFi: ");
-    Serial.println(wifiState == WIFI_CONNECTED ? "Connected" : "Disconnected");
   }
-
+  
   lastButtonLockState = lockButtonState;
   lastButtonUnlockState = unlockButtonState;
 }

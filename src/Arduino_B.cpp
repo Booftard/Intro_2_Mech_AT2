@@ -229,7 +229,7 @@ void connectionAnimation() {
 }
 
 void sendMessageToBoardA(const char* command) {
-    if (wifiState == WIFI_CONNECTED && client.connect(boardA_IP, boardA_IP)) {
+    if (wifiState == WIFI_CONNECTED && client.connect(boardA_IP, boardA_Port)) {
         client.println(command);
         client.stop();
     }
@@ -253,6 +253,7 @@ void displayNumber() {
 
     if (countdown <= 0 && countdownCompleteTime > 0) {
         // Display 00.0 when countdown is complete (right-aligned: blank, 0, 0, 0 with DP)
+        sendMessageToBoardA("FINISHED");
         if (millis() - countdownCompleteTime < completionDisplayTime) {
             if (currentDigit == 1) {
                 setSegments(0, false);
@@ -344,6 +345,7 @@ void startCountdown() {
   countdownActive = true;
   countdownCompleteTime = 0;
   Serial.println("Countdown STARTED - LOCK command received");
+  sendMessageToBoardA("STARTED");
 }
 
 void stopCountdown() {
@@ -351,6 +353,7 @@ void stopCountdown() {
   countdownCompleteTime = 0;
   countdown = startSeconds * 10; // Reset to initial value
   Serial.println("Countdown STOPPED/RESET - UNLOCK command received");
+  sendMessageToBoardA("STOPPED");
 }
 
 void checkForCommands() {

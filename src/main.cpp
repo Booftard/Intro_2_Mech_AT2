@@ -73,6 +73,7 @@ unsigned long lastReportTime = 0;
 const long reportInterval = 1000;
 String lastInput = "None";
 String activeLED = "Green";
+String lastBoardBMessage = "None";
 
 // BUTTON SPAM PREVENTOR
 int lastButtonLockState = LOW;
@@ -170,7 +171,7 @@ void sendMessageToBoardB(const char* command) {
   }
 }
 
-void checkForCommand() {
+void checkForCommands() {
   unsigned long currentMillis = millis();
 
   if (currentMillis - lastCommandCheck >= commandCheckInterval) {
@@ -185,19 +186,25 @@ void checkForCommand() {
           if (wifiCommandBuffer.length() > 0) {
             if (wifiCommandBuffer == "STARTED") {
               //  change thingy to Start
+              lastBoardBMessage = wifiCommandBuffer;
             } else if (wifiCommandBuffer == "STOPPED") {
               //  change to Stopped
+              lastBoardBMessage = wifiCommandBuffer;
             } else if (wifiCommandBuffer == "FINISHED") {
               //  change to Finished
+              lastBoardBMessage = wifiCommandBuffer;
             }
             wifiCommandBuffer = ""; 
           }
         } else if (c != '\r') {
           wifiCommandBuffer += c;
+          if (wifiCommandBuffer.length() > 20) {
+            wifiCommandBuffer = "";
+          }
         }
       }
+      client.stop();
     }
-
   }
 }
 
@@ -333,6 +340,8 @@ void connectToWiFi() {
   if (!systemReady || wifiState != WIFI_CONNECTED) {
       return;
   }
+
+  checkForCommands();
 
   int lockButtonState = digitalRead(buttonLock);
   int unlockButtonState = digitalRead(buttonUnlock);
@@ -480,7 +489,9 @@ void connectToWiFi() {
       Serial.print("   | Reading: ");
       Serial.print(analogRead(potPin));
       Serial.print("    | WiFi: ");
-      Serial.println(wifiState == WIFI_CONNECTED ? "Connected" : "Disconnected");
+      Serial.print(wifiState == WIFI_CONNECTED ? "Connected" : "Disconnected");
+      Serial.print("   | Last Message Received: ");
+      Serial.println(lastBoardBMessage);
     }
   }
   
